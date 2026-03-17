@@ -4,14 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catálogo Digital DESA</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
     <style>
         :root {
-            --primary: #4a9eff; /* Azul más claro para resaltar en negro */
-            --accent: #ff4d4d;  /* Rojo más vibrante */
-            --bg: #000000;      /* Fondo negro total */
-            --card-bg: #1a1a1a; /* Fondo gris muy oscuro para las tarjetas */
-            --text: #ffffff;    /* Texto blanco */
-            --text-secondary: #aaaaaa; /* Texto gris para descripciones */
+            --primary: #4a9eff;
+            --accent: #ff4d4d;
+            --bg: #000000;
+            --card-bg: #1a1a1a;
+            --text: #ffffff;
+            --text-secondary: #aaaaaa;
         }
 
         body {
@@ -22,9 +25,18 @@
             color: var(--text);
         }
 
-        header { text-align: center; margin-bottom: 30px; }
+        header { text-align: center; margin-bottom: 30px; position: relative; }
         h1 { color: var(--primary); margin-bottom: 5px; }
         header p { color: var(--text-secondary); }
+
+        /* CARRITO ICONO */
+        .cart-icon {
+            position: fixed; top: 20px; right: 20px;
+            background: var(--primary); color: white;
+            padding: 15px; border-radius: 50%; cursor: pointer;
+            z-index: 1001; box-shadow: 0 4px 15px rgba(74, 158, 255, 0.4);
+        }
+        #cart-count { font-weight: bold; margin-left: 5px; }
 
         .controls {
             display: flex; flex-wrap: wrap; gap: 15px;
@@ -39,7 +51,6 @@
             font-size: 16px; min-width: 250px;
         }
 
-        /* DISEÑO DE LAS CARDS */
         .catalog {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -55,22 +66,19 @@
         .card:hover {
             transform: translateY(-8px);
             border-bottom-color: var(--primary);
-            box-shadow: 0 8px 20px rgba(74, 158, 255, 0.2);
         }
 
-        /* ESPACIO PARA FOTO EN LA CARD */
         .product-img {
             width: 100%; height: 200px; object-fit: contain;
-            background: #fff; /* Se mantiene blanco para que resalten los productos */
-            padding: 10px;
+            background: #fff; padding: 10px;
             border-bottom: 1px solid #333;
         }
 
         .card-body { padding: 20px; text-align: center; }
         .product-name { font-weight: bold; font-size: 18px; margin-bottom: 8px; color: var(--text); }
-        .category-tag { font-size: 12px; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
+        .category-tag { font-size: 12px; color: var(--primary); text-transform: uppercase; }
 
-        /* MODAL */
+        /* MODALES */
         .modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); display: none; align-items: center;
@@ -79,18 +87,45 @@
 
         .modal-content {
             background: #1a1a1a; padding: 35px; border-radius: 15px;
-            border: 1px solid #333;
-            width: 450px; max-width: 90%; text-align: center; position: relative;
-            color: white;
+            border: 1px solid #333; width: 450px; max-width: 90%; 
+            text-align: center; position: relative; color: white;
+        }
+
+        /* CARRITO SIDEBAR */
+        #cart-sidebar {
+            position: fixed; right: -400px; top: 0; width: 350px; height: 100%;
+            background: #111; box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+            transition: 0.3s; z-index: 1002; padding: 20px; overflow-y: auto;
+        }
+        #cart-sidebar.active { right: 0; }
+
+        .btn-add {
+            background: var(--primary); color: white; border: none;
+            padding: 12px 25px; border-radius: 8px; cursor: pointer;
+            font-weight: bold; margin-top: 15px; width: 100%;
+        }
+
+        .btn-download {
+            background: #28a745; color: white; border: none;
+            padding: 12px; border-radius: 8px; cursor: pointer;
+            width: 100%; margin-top: 20px; font-weight: bold;
+        }
+
+        .cart-item {
+            background: #222; padding: 10px; margin-bottom: 10px;
+            border-radius: 8px; display: flex; justify-content: space-between; align-items: center;
         }
 
         .close { position: absolute; top: 15px; right: 20px; cursor: pointer; font-size: 24px; color: #fff; }
         .price { font-size: 28px; font-weight: bold; color: var(--accent); margin: 15px 0; }
-        .sku-label { font-size: 12px; color: #888; display: block; margin-top: 10px; }
         hr { border: 0; border-top: 1px solid #333; margin: 20px 0; }
     </style>
 </head>
 <body>
+
+<div class="cart-icon" onclick="toggleCart()">
+    🛒 <span id="cart-count">0</span>
+</div>
 
 <header>
     <h1>Catálogo Digital DESA</h1>
@@ -116,136 +151,60 @@
         <h2 id="modalName"></h2>
         <p id="modalDesc" style="color: #aaa;"></p>
         <hr>
-        <label>Seleccionar Formato:</label><br><br>
+        <label>Seleccionar Formato:</label><br>
         <select id="sizeSelect" onchange="updatePrice()"></select>
+        <br><br>
+        <label>Cantidad:</label><br>
+        <input type="number" id="itemQty" value="1" min="1" style="min-width: 50px; width: 80px; text-align: center;">
         <div class="price" id="modalPrice"></div>
-        <span class="sku-label" id="modalSku"></span>
+        <button class="btn-add" onclick="addToCart()">Añadir al Carrito</button>
+        <span class="sku-label" id="modalSku" style="display:block; margin-top:10px; color:#666;"></span>
     </div>
 </div>
 
+<div id="cart-sidebar">
+    <span class="close" onclick="toggleCart()">×</span>
+    <h2>Tu Pedido</h2>
+    <div id="cart-items-list"></div>
+    <hr>
+    <h3>Datos del Cliente</h3>
+    <input type="text" id="clientName" placeholder="Nombre Cliente" style="min-width: 100%; margin-bottom: 10px;">
+    <input type="text" id="localName" placeholder="Nombre Local" style="min-width: 100%; margin-bottom: 10px;">
+    <input type="text" id="comuna" placeholder="Comuna" style="min-width: 100%; margin-bottom: 10px;">
+    <input type="text" id="phone" placeholder="Teléfono" style="min-width: 100%; margin-bottom: 10px;">
+    
+    <div id="cart-total" style="font-size: 20px; font-weight: bold; margin-top: 15px;">Total: $0</div>
+    <button class="btn-download" onclick="generatePDF()">Descargar Pedido (PDF)</button>
+</div>
+
 <script>
-/* LISTA DE PRODUCTOS */
 const productos = [
-    {
-        id: "mr_big_original",
-        modelo: "MRB",
-        nombre: "Mr. Big Energy Drink",
-        categoria: "ENERGETICAS",
-        descripcion: "Bebida energética con Taurina, Cafeína y Vitaminas.",
-        imagen: "img/mrbig.png",
-        formatos: [
-            { label: "1500cc Botella", precio: 1990, sku: "BE50030" },
-            { label: "2500cc Botella", precio: 2590, sku: "BE50055" },
-            { label: "720cc Botella", precio: 990, sku: "BE50020" },
-            { label: "473cc Lata", precio: 770, sku: "BE50120" }
-        ]
-    },
-    {
-        id: "mr_big_zero",
-        modelo: "MRB-Z",
-        nombre: "Mr. Big Zero Sugar",
-        categoria: "ENERGETICAS",
-        descripcion: "Versión sin azúcar de Mr. Big Energy.",
-        imagen: "img/mrbig-zero.png",
-        formatos: [
-            { label: "1500cc Botella", precio: 1990, sku: "BE50035" },
-            { label: "720cc Botella", precio: 990, sku: "BE50025" }
-        ]
-    },
-    {
-        id: "mr_big_tropical",
-        modelo: "MRB-T",
-        nombre: "Mr. Big Tropical",
-        categoria: "ENERGETICAS",
-        descripcion: "Bebida energética sabor tropical.",
-        imagen: "img/mrbig-tropical.png",
-        formatos: [
-            { label: "720cc Botella", precio: 990, sku: "BE50130" }
-        ]
-    },
-    {
-        id: "panther_energy",
-        modelo: "PNT",
-        nombre: "Panther Energy",
-        categoria: "ENERGETICAS",
-        descripcion: "Sabor Berrie-acaramelado con Vitaminas y Cafeína.",
-        imagen: "img/panther.png",
-        formatos: [
-            { label: "2000cc Botella", precio: 2490, sku: "BE50110" },
-            { label: "720cc Botella", precio: 990, sku: "BE50115" },
-            { label: "473cc Lata", precio: 770, sku: "BE50125" }
-        ]
-    },
-    {
-        id: "hydroshock",
-        modelo: "HS",
-        nombre: "Hydroshock Ultra Recovery",
-        categoria: "SUERO",
-        descripcion: "Suero de hidratación con 8 Iones + Vitamina B.",
-        imagen: "img/hydroshock.png",
-        formatos: [
-            { label: "Blue Shock 1500cc", precio: 2000, sku: "BE60015" },
-            { label: "Tropical Shock 1500cc", precio: 2000, sku: "BE60020" }
-        ]
-    },
-    {
-        id: "fentimans_tonics",
-        modelo: "FEN-T",
-        nombre: "Fentimans Tonic Waters",
-        categoria: "AGUA TONICA",
-        descripcion: "Mixers botánicamente fermentados.",
-        imagen: "img/fentimans-tonica.png",
-        formatos: [
-            { label: "Indian Tonic 200cc", precio: 5749, sku: "AT10001" },
-            { label: "Light Tonic 200cc", precio: 5749, sku: "AT10003" },
-            { label: "Connoisseurs Tonic 200cc", precio: 5752, sku: "AT10005" }
-        ]
-    },
-    {
-        id: "fentimans_flavors",
-        modelo: "FEN-F",
-        nombre: "Fentimans Mixers Sabores",
-        categoria: "AGUA TONICA",
-        descripcion: "Bebidas botánicas de especialidad.",
-        imagen: "img/fentimans-sabores.png",
-        formatos: [
-            { label: "Rose Lemonade 200cc", precio: 5749, sku: "AT10002" },
-            { label: "Ginger Beer 200cc", precio: 5749, sku: "AT10008" },
-            { label: "Pink Grapefruit 200cc", precio: 5752, sku: "AT10009" },
-            { label: "Valencian Orange 200cc", precio: 5752, sku: "AT10004" }
-        ]
-    },
-    {
-        id: "estrella_galicia",
-        modelo: "EG",
-        nombre: "Estrella Galicia",
-        categoria: "CERVEZAS",
-        descripcion: "Cerveza española de tradición familiar.",
-        imagen: "img/estrella-galicia.png",
-        formatos: [
-            { label: "Botella 330cc", precio: 864, sku: "CI70201" }
-        ]
-    },
+    { id: "mr_big_original", modelo: "MRB", nombre: "Mr. Big Energy Drink", categoria: "ENERGETICAS", descripcion: "Bebida energética con Taurina, Cafeína y Vitaminas.", imagen: "img/mrbig.png", formatos: [{ label: "1500cc Botella", precio: 1990, sku: "BE50030" }, { label: "2500cc Botella", precio: 2590, sku: "BE50055" }, { label: "720cc Botella", precio: 990, sku: "BE50020" }, { label: "473cc Lata", precio: 770, sku: "BE50120" }] },
+    { id: "mr_big_zero", modelo: "MRB-Z", nombre: "Mr. Big Zero Sugar", categoria: "ENERGETICAS", descripcion: "Versión sin azúcar de Mr. Big Energy.", imagen: "img/mrbig-zero.png", formatos: [{ label: "1500cc Botella", precio: 1990, sku: "BE50035" }, { label: "720cc Botella", precio: 990, sku: "BE50025" }] },
+    { id: "mr_big_tropical", modelo: "MRB-T", nombre: "Mr. Big Tropical", categoria: "ENERGETICAS", descripcion: "Bebida energética sabor tropical.", imagen: "img/mrbig-tropical.png", formatos: [{ label: "720cc Botella", precio: 990, sku: "BE50130" }] },
+    { id: "panther_energy", modelo: "PNT", nombre: "Panther Energy", categoria: "ENERGETICAS", descripcion: "Sabor Berrie-acaramelado con Vitaminas y Cafeína.", imagen: "img/panther.png", formatos: [{ label: "2000cc Botella", precio: 2490, sku: "BE50110" }, { label: "720cc Botella", precio: 990, sku: "BE50115" }, { label: "473cc Lata", precio: 770, sku: "BE50125" }] },
+    { id: "hydroshock", modelo: "HS", nombre: "Hydroshock Ultra Recovery", categoria: "SUERO", descripcion: "Suero de hidratación con 8 Iones + Vitamina B.", imagen: "img/hydroshock.png", formatos: [{ label: "Blue Shock 1500cc", precio: 2000, sku: "BE60015" }, { label: "Tropical Shock 1500cc", precio: 2000, sku: "BE60020" }] },
+    { id: "fentimans_tonics", modelo: "FEN-T", nombre: "Fentimans Tonic Waters", categoria: "AGUA TONICA", descripcion: "Mixers botánicamente fermentados.", imagen: "img/fentimans-tonica.png", formatos: [{ label: "Indian Tonic 200cc", precio: 5749, sku: "AT10001" }, { label: "Light Tonic 200cc", precio: 5749, sku: "AT10003" }, { label: "Connoisseurs Tonic 200cc", precio: 5752, sku: "AT10005" }] },
+    { id: "fentimans_flavors", modelo: "FEN-F", nombre: "Fentimans Mixers Sabores", categoria: "AGUA TONICA", descripcion: "Bebidas botánicas de especialidad.", imagen: "img/fentimans-sabores.png", formatos: [{ label: "Rose Lemonade 200cc", precio: 5749, sku: "AT10002" }, { label: "Ginger Beer 200cc", precio: 5749, sku: "AT10008" }, { label: "Pink Grapefruit 200cc", precio: 5752, sku: "AT10009" }, { label: "Valencian Orange 200cc", precio: 5752, sku: "AT10004" }] },
+    { id: "estrella_galicia", modelo: "EG", nombre: "Estrella Galicia", categoria: "CERVEZAS", descripcion: "Cerveza española de tradición familiar.", imagen: "img/estrella-galicia.png", formatos: [{ label: "Botella 330cc", precio: 864, sku: "CI70201" }] }
 ];
 
+let cart = [];
 let currentProduct = null;
 
 function renderCatalog(datos) {
     const grid = document.getElementById("productGrid");
     grid.innerHTML = "";
-    
     datos.forEach(p => {
         const card = document.createElement("div");
         card.className = "card";
         card.onclick = () => openProduct(p.id);
-        
         card.innerHTML = `
             <img class="product-img" src="${p.imagen}" onerror="this.src='https://via.placeholder.com/300x200/333/fff?text=${p.modelo}'">
             <div class="card-body">
                 <span class="category-tag">${p.categoria}</span>
                 <div class="product-name">${p.nombre}</div>
                 <div style="font-size:14px; color:#aaa;">Modelo: ${p.modelo}</div>
-                <div style="font-size:14px; color:#888; margin-top:5px;">${p.formatos.length} Formatos disponibles</div>
             </div>
         `;
         grid.appendChild(card);
@@ -256,17 +215,15 @@ function openProduct(id) {
     currentProduct = productos.find(p => p.id === id);
     document.getElementById("modalName").innerText = currentProduct.nombre;
     document.getElementById("modalDesc").innerText = currentProduct.descripcion;
-    
+    document.getElementById("itemQty").value = 1;
     const select = document.getElementById("sizeSelect");
     select.innerHTML = "";
-    
     currentProduct.formatos.forEach((s, i) => {
         let opt = document.createElement("option");
         opt.value = i;
         opt.text = s.label;
         select.appendChild(opt);
     });
-    
     updatePrice();
     document.getElementById("productModal").style.display = "flex";
 }
@@ -278,20 +235,110 @@ function updatePrice() {
     document.getElementById("modalSku").innerText = "SKU: " + data.sku;
 }
 
-function closeModal() {
-    document.getElementById("productModal").style.display = "none";
+function closeModal() { document.getElementById("productModal").style.display = "none"; }
+
+function toggleCart() { document.getElementById("cart-sidebar").classList.toggle("active"); }
+
+function addToCart() {
+    const idx = document.getElementById("sizeSelect").value;
+    const qty = parseInt(document.getElementById("itemQty").value);
+    const formato = currentProduct.formatos[idx];
+
+    const item = {
+        nombre: currentProduct.nombre,
+        formato: formato.label,
+        precio: formato.precio,
+        sku: formato.sku,
+        cantidad: qty,
+        subtotal: formato.precio * qty
+    };
+
+    cart.push(item);
+    updateCartUI();
+    closeModal();
+    toggleCart();
+}
+
+function updateCartUI() {
+    const list = document.getElementById("cart-items-list");
+    list.innerHTML = "";
+    let total = 0;
+    cart.forEach((item, index) => {
+        total += item.subtotal;
+        list.innerHTML += `
+            <div class="cart-item">
+                <div style="text-align:left;">
+                    <div style="font-size:14px; font-weight:bold;">${item.nombre}</div>
+                    <div style="font-size:12px; color:#aaa;">${item.formato} (x${item.cantidad})</div>
+                </div>
+                <div style="text-align:right;">
+                    <div>$${item.subtotal.toLocaleString()}</div>
+                    <span style="color:red; cursor:pointer; font-size:12px;" onclick="removeItem(${index})">Eliminar</span>
+                </div>
+            </div>
+        `;
+    });
+    document.getElementById("cart-count").innerText = cart.length;
+    document.getElementById("cart-total").innerText = "Total: $" + total.toLocaleString();
+}
+
+function removeItem(index) {
+    cart.splice(index, 1);
+    updateCartUI();
+}
+
+async function generatePDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    const cName = document.getElementById("clientName").value;
+    const lName = document.getElementById("localName").value;
+    const com = document.getElementById("comuna").value;
+    const tel = document.getElementById("phone").value;
+
+    if(!cName || cart.length === 0) {
+        alert("Por favor ingresa al menos el nombre del cliente y añade productos.");
+        return;
+    }
+
+    doc.setFontSize(18);
+    doc.text("Pedido - Catálogo DESA", 14, 20);
+    
+    doc.setFontSize(11);
+    doc.text(`Cliente: ${cName}`, 14, 30);
+    doc.text(`Local: ${lName}`, 14, 37);
+    doc.text(`Comuna: ${com}`, 14, 44);
+    doc.text(`Teléfono: ${tel}`, 14, 51);
+
+    const tableData = cart.map(item => [
+        item.nombre,
+        item.formato,
+        item.cantidad,
+        `$${item.precio.toLocaleString()}`,
+        `$${item.subtotal.toLocaleString()}`
+    ]);
+
+    doc.autoTable({
+        startY: 60,
+        head: [['Producto', 'Formato', 'Cant.', 'Unitario', 'Subtotal']],
+        body: tableData,
+    });
+
+    const finalY = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(14);
+    doc.text(document.getElementById("cart-total").innerText, 14, finalY);
+
+    doc.save(`Pedido_${cName}.pdf`);
 }
 
 function filterProducts() {
     const query = document.getElementById("searchInput").value.toLowerCase();
     const cat = document.getElementById("categoryFilter").value;
-    
     const filtrados = productos.filter(p => {
         const matchName = p.nombre.toLowerCase().includes(query) || p.modelo.toLowerCase().includes(query);
         const matchCat = cat === "all" || p.categoria === cat;
         return matchName && matchCat;
     });
-    
     renderCatalog(filtrados);
 }
 
